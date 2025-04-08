@@ -53,3 +53,7 @@ The `<midi-visualizer>` has the following methods you can call:
 the user to upload a midi, rather than pointing to a specific file url. See the demo for an example.
 - `loadFileURL(url)`, to load midi file from given link.
 - `fitContent(width, height)`, to try to fit every midi notes into given canvas size.
+
+
+## TriliumNext Notes
+Download [MIDI.zip](https://github.com/LisGlitchrain/midi-visualizer/releases/tag/v.0.8.0) archive from releases. Import MIDI.zip archive as notes, follow instructions in the MIDI/MidiPlayerWidgetTestNote note.
