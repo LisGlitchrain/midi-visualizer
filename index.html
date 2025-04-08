@@ -7,66 +7,61 @@
 
   <title>🎹</title>
 
-  <!-- Web components polyfill -->
-  <script src="https://unpkg.com/@webcomponents/webcomponentsjs@^2.0.0/webcomponents-loader.js"></script>
+  <!-- load jquery -->
+  <script
+    src="https://code.jquery.com/jquery-3.2.1.min.js"
+    integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4="
+    crossorigin="anonymous"></script>
 
+  <!-- Web components polyfill -->
+  <!-- <script src="https://unpkg.com/@webcomponents/webcomponentsjs@^2.0.0/webcomponents-loader.js"></script> -->
+  <script src="webcomponents-loader.js"></script>
+
+  <!-- Newer version of midiconvert -->
+  <!-- <script src="https://unpkg.com/@tonejs/midi"></script> -->
   <!-- load magenta.js -->
-  <script src="https://unpkg.com/@magenta/music@1.1.9/dist/magentamusic.js"></script>
+  <!-- <script src="https://unpkg.com/@magenta/music@1.1.9/dist/magentamusic.js"></script> -->
+  <script src="magentamusic.js"></script>
 
   <!-- Load the web component-->
   <script src="midi-visualizer.js"></script>
 
   <!-- Make the demo pretty-->
   <link href="https://fonts.googleapis.com/css?family=IBM+Plex+Mono" rel="stylesheet">
-  <link href="./styles.css" rel="stylesheet">
+  <link href="midi-player-styles.css" rel="stylesheet">
 </head>
 <body>
-  <h1>Piano midi visualizer</h1>
-  <p>(the darker the note, the louder it is -- i.e. the higher its strike velocity)</p>
-  <div>
-    <button id="playBtn" disabled>wait...</button>
-    <span class="input">tempo: <input id="tempoInput" value="100" placeholder="tempo"></span>
-    <label class="input">
-      <input type="file" onchange="loadFile(event)">
-       Load midi file
-    </label>
-  </div>
-  <midi-visualizer
+  <h1 class="midi-h1">Piano midi visualizer</h1>  
+  <div class="midi-body">
+    <div>
+      <button id="playBtn" class="midi-button" disabled>wait...</button>
+      <button id="resetPlayheadBtn" class="midi-button" title="Set playhead position to 0.">ResetPlH</button>
+      <button id="fitContentBtn" class="midi-button" title="Fits content of current file to canvas">Fit Content</button>
+      <span class="midi-input-btn" title="Adjust playback tempo">tempo: <input id="tempoInput" value="100" placeholder="tempo"></span>
+      <label id="timeSignature" class="buttonLabel">0</label>
+      <label class="buttonLabel" title="Select file from disk.">
+        <input id="chooseFileBtn" type="file">
+        Load midi file
+      </label>
+      <select id="selectSize" title="Seect size of widget">
+        <option value="30">Default(30%)</option>
+        <option value="0">Minimized</option>
+        <option value="50">50%</option>
+        <option value="87">87%</option>
+      </select>
+      <select id="selectColorMode" title="Select by which property colors will be assigned"></select>
+      <select id="selectFilterMode" title="Select by which property notes will be displayed"></select>
+      <select id="selectFilterValue" title="Select which channel or track to display"></select>
+      <button id="copyCanvasBtn" class="midi-button" title="Copy screenshot of pianoroll to clipboard">ICPY</button>
+      <label class="buttonLabel" id="controlsHint" title="\nUse mouse click to set playhead's positions.\nUse mouse drag to:\n - to scroll horizontally.\n - with Alt to scroll vertically.\n - with Shift to scale horizontally.\n - with Ctrl to scale vertically.\nYou can also use mouse wheel.">Help</label>
+    </div>
+    <midi-visualizer
       id="visualizer"
       url="https://cdn.glitch.com/3312a3b4-6418-4bed-a0bd-3a0ca4dfa2fb%2Fchopin.mid?1534369337985">
-  </midi-visualizer>
-
-  <footer>
-      made with 🎧 by <a href="https://twitter.com/notwaldorf">monica</a>.
-    </footer>
-
-  <script>
-    // Set up some event listeners
-    tempoInput.addEventListener('change', () => visualizer.tempo = tempoInput.value);
-    playBtn.addEventListener('click', () => startOrStop());
-    visualizer.addEventListener('visualizer-ready', () => {
-      tempoInput.value = visualizer.tempo;
-      playBtn.disabled = false;
-      playBtn.textContent = 'play';
-    });
-
-    function loadFile(e) {
-      const file = e.target.files[0];
-      visualizer.loadFile(file);
-      return false;
-    }
-
-    function startOrStop() {
-      if (visualizer.isPlaying()) {
-        visualizer.stop();
-        playBtn.textContent = 'play';
-      } else {
-        visualizer.tempo = tempoInput.value;
-        visualizer.start();
-        playBtn.textContent = 'stop';
-      }
-    }
-  </script>
+    </midi-visualizer>
+  </div>
+  <footer class="midi-footer">made with 🎧 by <a href="https://twitter.com/notwaldorf">monica</a> (and slightly modified by <a href="https://github.com/LisGlitchrain">glitchrain)</a>.</footer>
+  <script src="main-controls.js"></script>
   <div class="glitchButton" style="position:fixed;top:20px;right:20px;"></div>
   <script src="https://button.glitch.me/button.js"></script>
 </body>

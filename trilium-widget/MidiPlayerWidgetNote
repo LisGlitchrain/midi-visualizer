@@ -1,0 +1,490 @@
+/*
+ * This defines a custom widget which displays number of words and characters in a current text note.
+ * To be activated for a given note, add label 'wordCount' to the note, you can also make it inheritable and thus activate it for the whole subtree.
+ * 
+ * See it in action in "Books" and its subtree.
+ */
+const TPL = `<div class="midi-body" style="padding: 1rrpx; border-top: 1px solid var(--main-border-color); contain: none;">
+
+  <style scoped>
+      .midi-body{
+      margin: 0;
+      font-family: Helvetica, Arial, sans-serif;
+      margin: 2px;
+      -webkit-font-smoothing: antialiased;
+      line-height: 1.5;
+      overflow-x: hidden;
+      --pink: #F05477;
+      --teal: #6FC9C6;
+
+      h1, h2 {
+        font-family: 'IBM Plex Mono', serif;
+        color: var(--pink);
+      }
+
+      a:link, a:visited {
+        color: black;
+        text-decoration: none;
+        border-bottom: 4px solid var(--pink);
+      }
+
+      a:hover {
+        color: white;
+        background: var(--pink);
+      }
+
+      footer {
+        text-align: left;
+        margin: 24px auto;
+      }
+
+      button, .input, .buttonLabel {
+        background: var(--teal);
+        color: white;
+        border: none;
+        margin: 0;
+        padding: 6px 10px;
+        font-size: 18px;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        font-weight: bold;
+        cursor: pointer;
+        min-width: 100px;
+      }
+
+       .midi-input-btn, select {
+        background: var(--teal);
+        color: white;
+        border: none;
+        margin: 0;
+        padding: 8px 10px;
+        font-size: 18px;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        font-weight: bold;
+        cursor: pointer;
+        min-width: 100px;
+      }
+
+      button[disabled] {
+        opacity: 0.5;
+      }
+
+      input {
+        font-family: inherit;
+        font-size: inherit;
+        border: none;
+        background: white;
+        width: 60px;
+      }
+
+      input[type="file"] {
+        width: 0;
+        height: 0;
+        opacity: 0;
+        cursor: pointer;
+        display: none;
+      }
+
+      midi-visualizer {
+        width: 100%;
+        border: 5px solid var(--teal);
+      }
+
+      @media (max-width: 450px) {
+        body {
+          margin: 24px 14px;
+        }
+        .glitchButtonElement img {
+          width: 24px;
+        }
+        .glitchButton {
+          top: 40px !important;
+        }
+      }
+      }
+  </style>
+
+  <script src="http://127.0.0.1:37840/custom/midi/player/webcomponents-loader.js"></script>
+  <script src="http://127.0.0.1:37840/custom/midi/player/magentamusic.js"></script>
+  <script src="http://127.0.0.1:37840/custom/midi/player/midi-visualizer.js"></script>
+  <div>
+    <button id="playBtn" class="midi-button" disabled>wait...</button>
+    <button id="resetPlayheadBtn" class="midi-button" title="Set playhead position to 0.">ResetPlH</button>
+    <button id="fitContentBtn" class="midi-button" title="Fits content of current file to canvas">Fit Content</button>
+    <span class="midi-input-btn" title="Adjust playback tempo">tempo: <input id="tempoInput" value="100" placeholder="tempo"></span>
+    <label id="timeSignature" class="buttonLabel">-/-</label>
+    <label class="buttonLabel" title="Select file from disk.">
+      <input id="chooseFileBtn" type="file">
+       Load midi file
+    </label>
+    <select id="comboAttachments" title="Select file from attachment, subtree notes or custom resource to load."></select>
+    <select id="selectSize" title="Seect size of widget">
+    	<option value="30">Default(30%)</option>
+    	<option value="0">Minimized</option>
+       	<option value="50">50%</option>
+    	<option value="87">87%</option>
+    </select>
+    <select id="selectColorMode" title="Select by which property colors will be assigned"></select>
+    <select id="selectFilterMode" title="Select by which property notes will be displayed"></select>
+    <select id="selectFilterValue" title="Select which channel or track to display"></select>
+    <button id="copyCanvasBtn" class="midi-button" title="Copy screenshot of pianoroll to clipboard">ICPY</button>
+    <label class="buttonLabel" id="controlsHint" title="\nUse mouse click to set playhead's positions.\nUse mouse drag to:\n - to scroll horizontally.\n - with Alt to scroll vertically.\n - with Shift to scale horizontally.\n - with Ctrl to scale vertically.\nYou can also use mouse wheel.">Help</label>
+  </div>
+  <midi-visualizer
+      id="visualizer"
+      url="https://cdn.glitch.com/3312a3b4-6418-4bed-a0bd-3a0ca4dfa2fb%2Fchopin.mid?1534369337985">
+  </midi-visualizer>
+</div>`;
+
+class MidiPlayerWidget extends api.NoteContextAwareWidget 
+{
+    static get parentWidget() { return 'center-pane'; }
+
+    get position() { return 100; } // higher value means position towards the bottom/right
+
+    isEnabled() 
+    {       
+        return super.isEnabled()
+            && (
+            ((this.note.type === 'text'  || this.note.type === 'book') && this.note.hasLabel('midiPlayerWidget'))
+            || (this.note.type === 'file' && (this.note.mime === "audio/midi" || this.note.mime === "audio/mid")));
+    }
+
+    doRender() 
+    {
+        this.$widget = $(TPL);
+        
+        this.$visualizer = this.$widget.find("#visualizer");
+        this.$playBtn = this.$widget.find("#playBtn");
+        this.$resetPlayheadBtn = this.$widget.find("#resetPlayheadBtn");
+        this.$comboAttachments = this.$widget.find("#comboAttachments");
+        this.$tempoInput =  this.$widget.find("#tempoInput");
+        this.$chooseFileBtn =  this.$widget.find("#chooseFileBtn");
+        this.$fitContentBtn =  this.$widget.find("#fitContentBtn");
+        this.$selectSize =  this.$widget.find("#selectSize");
+        this.$selectColorMode =  this.$widget.find("#selectColorMode");
+        this.$selectFilterMode =  this.$widget.find("#selectFilterMode");
+        this.$selectFilterValue =  this.$widget.find("#selectFilterValue");
+        this.$copyCanvasBtn =  this.$widget.find("#copyCanvasBtn");
+        this.$timeSignature =  this.$widget.find("#timeSignature");
+        
+        this.$tempoInput.bind('change', () =>  this.$visualizer.tempo = this.$tempoInput.value);
+		    this.$playBtn[0].addEventListener('click', () => this.startOrStop());
+		    this.$resetPlayheadBtn[0].addEventListener('click', () => this.$visualizer[0].currentPlayhead = 0);
+		    this.$comboAttachments[0].onchange = (event) => this.getComboAttachment(event);
+        this.$chooseFileBtn[0].onchange = (event) => this.loadFile(event);
+        this.$selectSize[0].onchange = (event) => this.changeSize(event);
+        this.$selectColorMode[0].onchange = (event) => this.changeColorMode(event);
+        this.$selectFilterMode[0].onchange = (event) => this.changeFilterMode(event);
+        this.$selectFilterValue[0].onchange = (event) => this.changeFilterValue(event);
+        //document.addEventListener('click', (event) => this.loadOnClick(event));
+        this.$copyCanvasBtn[0].addEventListener('click', () => this.$visualizer[0].copyCanvasToClipboard());
+        this.$visualizer[0].addEventListener('playbackStopped', () => this.updateStartStopButton());
+        this.$visualizer[0].addEventListener('updateTimeSignature', (event) => this.updateTimeSignature(event));
+
+        const targetSizeRect = this.$visualizer[0].getBoundingClientRect();  
+
+        this.$visualizer[0].widthToFit = targetSizeRect.width;
+        this.$visualizer[0].heightToFit = targetSizeRect.height;
+        this.$visualizer[0].addEventListener('visualizer-ready', () => 
+        {
+          this.$tempoInput[0].value =  this.$visualizer[0].tempo;
+          this.$playBtn[0].disabled = false;
+          this.$playBtn[0].textContent = 'play';
+        });
+        this.$fitContentBtn[0].addEventListener('click', () => this.fitContent());
+        
+        this.$visualizer[0].pixelsPerTimeStep =  this.$visualizer[0].maxPixelsPerTimeStep * (30 / 1000);
+        this._visualizerRelativeHeight = 30;
+        this.$visualizer[0]._widthToFit = window.innerWidth;
+        this.$visualizer[0]._heightToFit = Math.round(this._visualizerRelativeHeight / 100.0 *  window.innerHeight);
+       
+        return this.$widget;
+    }
+
+    async refreshWithNote(note) 
+    {
+        const {content} = await note.getNoteComplement();
+        //const text = $(content).text();
+        this.changeSizeByPercents(this._visualizerRelativeHeight);
+        
+        const optionsTemplate = "<option value=\"$$VALUE_REPLACER$$\">$$TEXT_REPLACER$$</option>";
+        const valueReplacer = "$$VALUE_REPLACER$$";
+        const textReplacer = "$$TEXT_REPLACER$$";
+        
+        this.attachments = await note.getAttachments();
+        this.currentNoteId = note.noteId;
+        var loadingOptions = "";
+        const currentNoteIsMidiFile = note.type == "file" && (note.mime == "audio/midi" || this.note.mime === "audio/mid");
+        if(currentNoteIsMidiFile)
+        {
+           const midiName = note.title;
+           loadingOptions = loadingOptions + optionsTemplate.replace(valueReplacer, "CURRENT_NOTE_" + midiName).replace(textReplacer, midiName);
+        }
+
+        loadingOptions = loadingOptions + optionsTemplate.replace(valueReplacer, "").replace(textReplacer, "select file");
+        for(var j = 0; j < this.attachments.length; j++)
+        {
+            const attachmentTitle = this.attachments[j].title;
+            if(attachmentTitle.endsWith(".mid"))
+            {
+                const midiName = attachmentTitle;
+                if(midiName == "")
+                    continue;
+                const optionToAdd = optionsTemplate.replace(valueReplacer, "ATTACHMENT_" + midiName).replace(textReplacer, midiName);
+                loadingOptions = loadingOptions + optionToAdd;
+            }
+        }
+        
+        var childNotes = await this.note.getChildNotes();
+        for(j = 0; j < childNotes.length; j++)
+        {
+        	const childText = childNotes[j].getNoteComplement();
+            const attachmentTitle = childNotes[j].title;
+            if(attachmentTitle.endsWith(".mid"))
+            {
+                const midiName = attachmentTitle;
+                if(midiName == "")
+                    continue;
+                const optionToAdd = optionsTemplate.replace(valueReplacer, "FILE_CHILD_" + midiName).replace(textReplacer, midiName);
+                loadingOptions = loadingOptions + optionToAdd;
+            }
+        }
+
+        var attributes = note.getAttributes();
+        var noteId =  note.id;
+        this.specialMidiURLPath = note.getLabelValue("midiSpecialURLPath");
+        var specialMidiURLNames = note.getLabelValue("midiSpecialURLNames");
+        if(specialMidiURLNames != undefined)
+        {
+            specialMidiURLNames = specialMidiURLNames.trim();
+            var splittedMidiURLNames = specialMidiURLNames.split(";");
+            for(var i = 0; i < splittedMidiURLNames.length; i++)
+            {
+                const midiName = splittedMidiURLNames[i].trim();
+                if(midiName == "")
+                    continue;
+                const optionToAdd = optionsTemplate.replace(valueReplacer, "CUSTOM_RESOURCE_" + midiName).replace(textReplacer, midiName);
+                loadingOptions = loadingOptions + optionToAdd;
+            }
+        }
+                 
+        this.$comboAttachments[0].innerHTML = loadingOptions;
+        
+        if(currentNoteIsMidiFile)
+        {
+            const path = "http://127.0.0.1:37840/api/notes/" + this.note.noteId + "/download?";
+        	console.log("loading URL: " + path);
+        	this.$visualizer[0].loadFileURL(path); 
+        }
+        else
+        {
+            this.$visualizer[0].changeSize(Math.round(this._visualizerRelativeHeight / 100.0 *  window.innerHeight))
+        }
+        
+        if(COLOR_MODE != undefined)
+        {
+            const colorModeValues = Object.values(COLOR_MODE);
+            const colorModeKeys = Object.keys(COLOR_MODE);
+            var colorModeOptions = "";
+            for(var k = 0; k < colorModeKeys.length; k++)
+            {
+                const optionToAdd = optionsTemplate.replace(valueReplacer, colorModeValues[k]).replace(textReplacer, colorModeKeys[k]);
+                colorModeOptions = colorModeOptions + optionToAdd;
+            }
+            this.$selectColorMode[0].innerHTML = colorModeOptions;
+        }
+        else
+        {
+            console.log("COLOR_MODE IS INDEFINED!")
+        }
+        
+        if(FILTER_MODE != undefined)
+        {
+            const filterModeValues = Object.values(FILTER_MODE);
+            const filterModeKeys = Object.keys(FILTER_MODE);
+            var filterModeOptions = "";
+            for(k = 0; k < filterModeKeys.length; k++)
+            {
+                const optionToAdd = optionsTemplate.replace(valueReplacer, filterModeValues[k]).replace(textReplacer, filterModeKeys[k]);
+                filterModeOptions = filterModeOptions + optionToAdd;
+            }
+            this.$selectFilterMode[0].innerHTML = filterModeOptions;
+        }
+        else
+        {
+            console.log("FILTER_MODE IS INDEFINED!")
+        }
+        
+        if(FILTER_VALUE != undefined)
+        {
+            const filterValues = Object.values(FILTER_VALUE);
+            const filterKeys = Object.keys(FILTER_VALUE);
+            var filterValueOptions = "";
+            for(k = 0; k < filterKeys.length; k++)
+            {
+                const optionToAdd = optionsTemplate.replace(valueReplacer, filterValues[k]).replace(textReplacer, filterKeys[k]);
+                filterValueOptions = filterValueOptions + optionToAdd;
+            }
+            this.$selectFilterValue[0].innerHTML = filterValueOptions;
+        }
+        else
+        {
+            console.log("FILTER_VALUE IS INDEFINED!")
+        }
+
+        
+        this.fitContent();
+    }
+    
+    async getComboAttachment(event) 
+    {
+        const value = event.target.value;  
+        if(value != "")
+        {
+            if(value.startsWith("CURRENT_NOTE_"))
+            {
+               const path = "http://127.0.0.1:37840/api/notes/" + this.note.noteId + "/download?";
+               //const path = "#root/api/notes/" + this.note.noteId + "/download?";
+               console.log("loading URL: " + path);
+               this.$visualizer[0].loadFileURL(path);
+            }
+            else if(value.startsWith("ATTACHMENT_"))
+            {
+                const compareValue = value.replace("ATTACHMENT_", "");
+                for(var i = 0; i < this.note.attachments.length; i++)
+                {
+                    if(compareValue == this.note.attachments[i].title)
+                    {
+                        const path = "http://127.0.0.1:37840/api/attachments/" + this.note.attachments[i].attachmentId + "/download?";
+                        console.log("loading URL: " + path);
+                        this.$visualizer[0].loadFileURL(path);
+                        break;
+                    }
+                }
+            }
+            else if(value.startsWith("FILE_CHILD_"))
+            {
+                const compareValue = value.replace("FILE_CHILD_", "");
+                var childNotes = await this.note.getChildNotes();
+                for(i = 0; i < childNotes.length; i++)
+                {
+                    if(compareValue == childNotes[i].title)
+                    {
+                        const path = "http://127.0.0.1:37840/api/notes/" + childNotes[i].noteId + "/download?";
+                        console.log("loading URL: " + path);
+                        this.$visualizer[0].loadFileURL(path);
+                        break;
+                    }
+                }
+            }
+            else if(value.startsWith("CUSTOM_RESOURCE_"))
+            {
+                const unwrappedPath = value.replace("CUSTOM_RESOURCE_", "");
+                const path = "http://127.0.0.1:37840/custom/" + this.specialMidiURLPath + unwrappedPath;
+            	console.log("loading URL: " + path);
+            	this.$visualizer[0].loadFileURL(path);
+            }
+        }
+        console.log(value);
+    }
+    
+    //not implemented correctly
+    loadOnClick(event)
+    {
+        if (event.detail === 2)
+    	{	
+        	//alert('double click! ' + Object.keys(event.target));
+        	console.log('double click! ' + Object.keys(event));
+            //const selection = editor.getSelection().getSelectedText();
+           	//console.log("SELECTED TEXT: " + selection);
+        	console.log('double click! ' + Object.values(event));
+            if(event.target.parentElement.className.includes("ck-button_with-text"))
+            {
+                //openPath(event.target.innerText);
+            }
+    	}
+    }
+    
+    loadFile(event) 
+    {
+      const file = event.target.files[0];
+      this.$visualizer[0].loadFile(file).then(this.$visualizer[0].changeSize(Math.round(this._visualizerRelativeHeight / 100.0 *  window.innerHeight)));
+      console.log("loading file!");
+      return false;
+    }
+    
+    changeSize(event) 
+    {
+      const value = event.target.value;
+      this._visualizerRelativeHeight = value;
+      this.$visualizer[0].changeSize(Math.round(value / 100.0 *  window.innerHeight));
+    }
+    
+    changeSizeByPercents(percents) 
+    {
+      const value = percents;
+      this._visualizerRelativeHeight = value;
+      this.$visualizer[0].changeSize(Math.round(value / 100.0 *  window.innerHeight));
+    }
+    
+    changeColorMode(event) 
+    {
+      this.$visualizer[0].colorMode = Number(event.target.value);
+    }
+    
+    changeFilterMode(event) 
+    {
+      this.$visualizer[0].filterMode = Number(event.target.value);
+    }
+    
+    changeFilterValue(event) 
+    {
+      this.$visualizer[0].filterValue = Number(event.target.value);
+    }
+
+    startOrStop() 
+    {
+      if (this.$visualizer[0].isPlaying()) 
+      {
+        this.$visualizer[0].stop();
+        this.$playBtn[0].textContent = 'play';
+      } 
+      else 
+      {
+        this.$visualizer[0].tempo = this.$tempoInput[0].value;
+        this.$visualizer[0].start();
+        this.$playBtn[0].textContent = 'stop';
+      }
+    }
+
+    updateStartStopButton()
+    {
+      if (this.$visualizer[0].isPlaying()) 
+        this.$playBtn[0].textContent = 'stop';
+      else 
+        this.$playBtn[0].textContent = 'play';
+    }
+    
+    fitContent()
+    {
+      this.$visualizer[0].fitContent(this.$visualizer[0].clientWidth, this.$visualizer[0].clientHeight);
+    }
+  
+    updateTimeSignature(event)
+    {    
+      this.$timeSignature[0].innerHTML = event.detail.numerator + "/" + event.detail.denominator;
+    }
+
+    async entitiesReloadedEvent({loadResults}) 
+    {
+        if (loadResults.isNoteContentReloaded(this.noteId)) 
+        {
+            this.refresh();
+        }
+    }
+}
+
+module.exports = MidiPlayerWidget;
+

@@ -5,18 +5,22 @@ This is a web component that shows a visualization for a midi file, and can play
 audio while updating the visualization. The audio playing works best with Piano midi files at the moment,
 but some multi-instrument midi files will work too.
 
-<img src="https://user-images.githubusercontent.com/1369170/44228379-064a8900-a14a-11e8-8173-7dea5ede3de8.gif" alt="demo of using the midi-visualizer" height=500>
+## Navigation
+<img src="./.github/images/playback_and_navigation.gif" alt="demo of using the midi-visualizer (navigation)" height=500>
+
+## Track Filtering
+<img src="./.github/images/playback_and_track_filters.gif" alt="demo of using the midi-visualizer (track filtering)" height=500>
 
 ## Sample use
 
 ```html
 <html>
   <head>
-    <!-- Web components polyfill, so this works on all browsers -->
+  <!-- Web components polyfill, so this works on all browsers -->
   <script src="https://unpkg.com/@webcomponents/webcomponentsjs@^2.0.0/webcomponents-loader.js"></script>
 
-  <!-- Load magenta.js, which is needed by the element. -->
-  <script src="https://unpkg.com/@magenta/music@1.1.9/dist/magentamusic.js"></script>
+  <!-- Load midified version of magenta.js, which is needed by the element. Without modification track and channel filtering will not work. -->
+  <script src="magentamusic.js"></script>
 
   <!-- Load the web component itself -->
   <script src="midi-visualizer.js"></script>
@@ -47,3 +51,5 @@ The `<midi-visualizer>` has the following methods you can call:
 - `stop()`, to stop playing the midi
 - `loadFile(blob)`, to load a midi file contents. This is useful if you want to allow
 the user to upload a midi, rather than pointing to a specific file url. See the demo for an example.
+- `loadFileURL(url)`, to load midi file from given link.
+- `fitContent(width, height)`, to try to fit every midi notes into given canvas size.
